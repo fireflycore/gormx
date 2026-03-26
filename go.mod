@@ -7,7 +7,7 @@ require (
 	github.com/fireflycore/go-utils v0.3.6
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/uptrace/opentelemetry-go-extra/otelgorm v0.3.2
 	go.opentelemetry.io/otel/log v0.18.0
 	go.opentelemetry.io/otel/trace v1.42.0
@@ -32,7 +32,6 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/metric v1.42.0 // indirect
-	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
