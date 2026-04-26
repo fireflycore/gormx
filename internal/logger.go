@@ -38,12 +38,12 @@ type OperationLogger struct {
 	TraceId  string `json:"trace_id"`
 	ParentId string `json:"parent_id"`
 
-	TargetAppId string `json:"target_app_id"`
-	InvokeAppId string `json:"invoke_app_id"`
-
 	UserId   string `json:"user_id"`
 	AppId    string `json:"app_id"`
 	TenantId string `json:"tenant_id"`
+
+	ServiceAppId      string `json:"service_app_id"`
+	ServiceInstanceId string `json:"service_instance_id"`
 }
 
 // Config 为自定义 gorm logger 的配置
@@ -277,14 +277,15 @@ func (l *logger) handleLog(ctx context.Context, level loger.LogLevel, path, smt,
 	if gd := md.Get(constant.AppId); len(gd) != 0 {
 		logData.AppId = gd[0]
 	}
-	if gd := md.Get(constant.InvokeServiceAppId); len(gd) != 0 {
-		logData.InvokeAppId = gd[0]
-	}
-	if gd := md.Get(constant.TargetServiceAppId); len(gd) != 0 {
-		logData.TargetAppId = gd[0]
-	}
 	if gd := md.Get(constant.TenantId); len(gd) != 0 {
 		logData.TenantId = gd[0]
+	}
+
+	if gd := md.Get(constant.ServiceAppId); len(gd) != 0 {
+		logData.ServiceAppId = gd[0]
+	}
+	if gd := md.Get(constant.ServiceInstanceId); len(gd) != 0 {
+		logData.ServiceInstanceId = gd[0]
 	}
 
 	l.emitOTelOperationLog(ctx, level, logData)
@@ -322,12 +323,6 @@ func (l *logger) emitOTelOperationLog(ctx context.Context, level loger.LogLevel,
 	}
 	if logData.AppId != "" {
 		record.AddAttributes(log.String("app_id", logData.AppId))
-	}
-	if logData.InvokeAppId != "" {
-		record.AddAttributes(log.String("invoke_app_id", logData.InvokeAppId))
-	}
-	if logData.TargetAppId != "" {
-		record.AddAttributes(log.String("target_app_id", logData.TargetAppId))
 	}
 	if logData.TenantId != "" {
 		record.AddAttributes(log.String("tenant_id", logData.TenantId))
