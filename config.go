@@ -2,8 +2,8 @@ package gormx
 
 import "github.com/fireflycore/go-utils/tlsx"
 
-// Conf 为 gorm 初始化所需的配置项集合。
-type Conf struct {
+// Config 为 gorm 初始化所需的配置项集合。
+type Config struct {
 	// 1-postgres 2-oracle 3-sqlite 4-mysql 5-mssql
 	// Type 表示数据库类型枚举。
 	Type uint32 `json:"type"`
@@ -58,11 +58,11 @@ type Conf struct {
 }
 
 // WithLoggerConsole 设置是否将 SQL 日志输出到控制台。
-func (c *Conf) WithLoggerConsole(state bool) {
+func (c *Config) WithLoggerConsole(state bool) {
 	c.loggerConsole = state
 }
 
 // WithAutoMigrate 设置是否在初始化连接后自动迁移表结构。
-func (c *Conf) WithAutoMigrate(state bool) {
+func (c *Config) WithAutoMigrate(state bool) {
 	c.autoMigrate = state
 }
