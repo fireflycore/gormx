@@ -8,7 +8,7 @@ import (
 )
 
 // NewLogger 根据 Config 构造 gorm logger。
-func NewLogger(c *Conf) loger.Interface {
+func NewLogger(c *Config) loger.Interface {
 	// c 为空或未开启 Logger 时，直接丢弃日志输出。
 	if c == nil || !c.Logger {
 		// Discard 为 gorm 提供的空实现。

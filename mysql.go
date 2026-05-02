@@ -16,8 +16,8 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-type MysqlConf struct {
-	Conf
+type MysqlConfig struct {
+	Config
 }
 
 type MysqlDB struct {
@@ -28,7 +28,7 @@ type MysqlDB struct {
 var mysqlTLSConfigSeq uint64
 
 // NewMysql 使用配置初始化 MySQL 的 gorm.DB，并可选执行 AutoMigrate。
-func NewMysql(mc *MysqlConf, tables []interface{}) (*MysqlDB, error) {
+func NewMysql(mc *MysqlConfig, tables []interface{}) (*MysqlDB, error) {
 	if mc == nil {
 		return nil, errors.New("mysql: conf is nil")
 	}
@@ -76,7 +76,7 @@ func NewMysql(mc *MysqlConf, tables []interface{}) (*MysqlDB, error) {
 	}
 
 	// gormLogger 根据配置构造（默认丢弃输出，开启 Logger 时输出）。
-	log := NewLogger(&mc.Conf)
+	log := NewLogger(&mc.Config)
 
 	db, err := gorm.Open(mysql2.Open(clientOptions.FormatDSN()), &gorm.Config{
 		// NamingStrategy 控制表名前缀与单复数规则。

@@ -15,8 +15,8 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-type PostgresConf struct {
-	Conf
+type PostgresConfig struct {
+	Config
 }
 
 type PostgresDB struct {
@@ -24,7 +24,7 @@ type PostgresDB struct {
 }
 
 // NewPostgres 使用配置初始化 Postgres 的 gorm.DB，并可选执行 AutoMigrate。
-func NewPostgres(mc *PostgresConf, tables []interface{}) (*PostgresDB, error) {
+func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) {
 	if mc == nil {
 		return nil, errors.New("postgres: conf is nil")
 	}
@@ -83,7 +83,7 @@ func NewPostgres(mc *PostgresConf, tables []interface{}) (*PostgresDB, error) {
 	sqlDB := stdlib.OpenDB(*connConfig)
 
 	// log 根据配置构造（默认丢弃输出，开启 Logger 时输出）。
-	log := NewLogger(&mc.Conf)
+	log := NewLogger(&mc.Config)
 
 	// 打开 gorm DB，并配置命名策略、NowFunc、事务与 logger 等选项。
 	db, err := gorm.Open(postgres.New(postgres.Config{
