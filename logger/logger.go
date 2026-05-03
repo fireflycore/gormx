@@ -1,4 +1,4 @@
-package internal
+package logger
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fireflycore/go-micro/constant"
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/trace"
@@ -46,6 +45,44 @@ type OperationLogger struct {
 	ServiceInstanceId string `json:"service_instance_id"`
 }
 
+// UserContextFields 为用户上下文字段，用于记录用户信息。
+type UserContextFields struct {
+	UserId            string `json:"user_id"`
+	AppId             string `json:"app_id"`
+	TenantId          string `json:"tenant_id"`
+	OrgIds            string `json:"org_ids"`
+	RoleIds           string `json:"role_ids"`
+	ServiceAppId      string `json:"service_app_id"`
+	ServiceInstanceId string `json:"service_instance_id"`
+}
+
+// Normalize 为用户上下文字段设置默认值。
+func (u *UserContextFields) Normalize() {
+	if u.UserId == "" {
+		u.UserId = "user-id"
+	}
+	if u.OrgIds == "" {
+		u.OrgIds = "org-ids"
+	}
+	if u.RoleIds == "" {
+		u.RoleIds = "role-ids"
+	}
+
+	if u.AppId == "" {
+		u.AppId = "app-id"
+	}
+	if u.TenantId == "" {
+		u.TenantId = "tenant-id"
+	}
+
+	if u.ServiceAppId == "" {
+		u.ServiceAppId = "service-app-id"
+	}
+	if u.ServiceInstanceId == "" {
+		u.ServiceInstanceId = "service-instance-id"
+	}
+}
+
 // Config 为自定义 gorm logger 的配置
 type Config struct {
 	// Config 复用 gorm 内置 logger.Config（包含 SlowThreshold/LogLevel/Colorful 等）
@@ -60,7 +97,7 @@ type Config struct {
 }
 
 // NewLogger 构造一个 gorm logger，实现控制台输出与自定义回调输出
-func NewLogger(config Config) loger.Interface {
+func NewLogger(config Config, userContextFields *UserContextFields) loger.Interface {
 	// 定义各级别日志输出模板（可选彩色）
 	var (
 		infoStr      = "[%s] [info] [Database:%s]\n%s\n%s"
@@ -103,6 +140,8 @@ func NewLogger(config Config) loger.Interface {
 		database: config.Database,
 		// databaseType 记录库类型便于聚合检索
 		databaseType: config.DatabaseType,
+		// userContextFields 记录用户上下文字段便于聚合检索
+		userContextFields: userContextFields,
 	}
 }
 
@@ -120,6 +159,8 @@ type logger struct {
 	databaseType uint32
 	// console 控制台输出开关
 	console bool
+	// 用户上下文字段
+	userContextFields *UserContextFields
 }
 
 // LogMode 设置日志级别，返回一个新的 logger（符合 gorm 约定）
@@ -271,20 +312,20 @@ func (l *logger) handleLog(ctx context.Context, level loger.LogLevel, path, smt,
 
 	// 从 gRPC metadata 中提取链路字段（存在则写入结构化日志，作为兼容兜底）
 	md, _ := metadata.FromIncomingContext(ctx)
-	if gd := md.Get(constant.UserId); len(gd) != 0 {
+	if gd := md.Get(l.userContextFields.UserId); len(gd) != 0 {
 		logData.UserId = gd[0]
 	}
-	if gd := md.Get(constant.AppId); len(gd) != 0 {
+	if gd := md.Get(l.userContextFields.AppId); len(gd) != 0 {
 		logData.AppId = gd[0]
 	}
-	if gd := md.Get(constant.TenantId); len(gd) != 0 {
+	if gd := md.Get(l.userContextFields.TenantId); len(gd) != 0 {
 		logData.TenantId = gd[0]
 	}
 
-	if gd := md.Get(constant.ServiceAppId); len(gd) != 0 {
+	if gd := md.Get(l.userContextFields.ServiceAppId); len(gd) != 0 {
 		logData.ServiceAppId = gd[0]
 	}
-	if gd := md.Get(constant.ServiceInstanceId); len(gd) != 0 {
+	if gd := md.Get(l.userContextFields.ServiceInstanceId); len(gd) != 0 {
 		logData.ServiceInstanceId = gd[0]
 	}
 
