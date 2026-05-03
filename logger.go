@@ -3,7 +3,7 @@ package gormx
 import (
 	"time"
 
-	"github.com/fireflycore/gormx/internal"
+	"github.com/fireflycore/gormx/logger"
 	loger "gorm.io/gorm/logger"
 )
 
@@ -15,8 +15,14 @@ func NewLogger(c *Config) loger.Interface {
 		return loger.Discard
 	}
 
+	// 初始化 UserContextFields。
+	if c.userContextFields == nil {
+		c.userContextFields = &logger.UserContextFields{}
+		c.userContextFields.Normalize()
+	}
+
 	// internal.New 返回一个实现 loger.Interface 的自定义 logger。
-	return internal.NewLogger(internal.Config{
+	return logger.NewLogger(logger.Config{
 		// Config 复用 gorm 自带的 logger.Config。
 		Config: loger.Config{
 			// SlowThreshold 为慢 SQL 阈值。
@@ -32,5 +38,5 @@ func NewLogger(c *Config) loger.Interface {
 		Database: c.Database,
 		// DatabaseType 记录库类型，便于日志聚合。
 		DatabaseType: c.Type,
-	})
+	}, c.userContextFields)
 }
