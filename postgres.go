@@ -24,13 +24,13 @@ type PostgresDB struct {
 }
 
 // NewPostgres 使用配置初始化 Postgres 的 gorm.DB，并可选执行 AutoMigrate。
-func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) {
-	if mc == nil {
+func NewPostgres(config *PostgresConfig) (*PostgresDB, error) {
+	if config == nil {
 		return nil, errors.New("postgres: conf is nil")
 	}
 
 	// 将 address 拆为 host/port，未带端口时使用默认值 5432。
-	host, port, err := network.SplitHostPort(mc.Address, "5432")
+	host, port, err := network.SplitHostPort(config.Address, "5432")
 	// 解析失败直接返回错误。
 	if err != nil {
 		return nil, err
@@ -40,20 +40,20 @@ func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) 
 	dsnParts := []string{
 		"host=" + host,
 		"port=" + port,
-		"dbname=" + mc.Database,
+		"dbname=" + config.Database,
 		"TimeZone=UTC",
 	}
 	// 若提供用户名，则写入 DSN。
-	if mc.Username != "" {
-		dsnParts = append(dsnParts, "user="+mc.Username)
+	if config.Username != "" {
+		dsnParts = append(dsnParts, "user="+config.Username)
 		// 若提供密码，则写入 DSN。
-		if mc.Password != "" {
-			dsnParts = append(dsnParts, "password="+mc.Password)
+		if config.Password != "" {
+			dsnParts = append(dsnParts, "password="+config.Password)
 		}
 	}
 
 	// tlsConfig 为构造好的 TLS 配置；tlsEnabled 表示是否启用；err 为构造过程的错误。
-	tlsConfig, tlsEnabled, err := tlsx.NewTLSConfig(mc.Tls)
+	tlsConfig, tlsEnabled, err := tlsx.NewTLSConfig(config.Tls)
 	// 构造 TLS 配置失败直接返回错误。
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) 
 	sqlDB := stdlib.OpenDB(*connConfig)
 
 	// log 根据配置构造（默认丢弃输出，开启 Logger 时输出）。
-	log := NewLogger(&mc.Config)
+	log := NewLogger(&config.Config)
 
 	// 打开 gorm DB，并配置命名策略、NowFunc、事务与 logger 等选项。
 	db, err := gorm.Open(postgres.New(postgres.Config{
@@ -92,19 +92,19 @@ func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) 
 	}), &gorm.Config{
 		// NamingStrategy 控制表名前缀与单复数规则。
 		NamingStrategy: schema.NamingStrategy{
-			TablePrefix:   mc.TablePrefix,
-			SingularTable: mc.SingularTable,
+			TablePrefix:   config.TablePrefix,
+			SingularTable: config.SingularTable,
 		},
 		// NowFunc 统一生成 UTC 时间。
 		NowFunc: func() time.Time {
 			return time.Now().UTC()
 		},
 		// DisableForeignKeyConstraintWhenMigrating 控制迁移时是否创建外键。
-		DisableForeignKeyConstraintWhenMigrating: mc.DisableForeignKeyConstraintWhenMigrating,
+		DisableForeignKeyConstraintWhenMigrating: config.DisableForeignKeyConstraintWhenMigrating,
 		// SkipDefaultTransaction 控制 gorm 默认事务行为。
-		SkipDefaultTransaction: mc.SkipDefaultTransaction,
+		SkipDefaultTransaction: config.SkipDefaultTransaction,
 		// PrepareStmt 控制是否启用预处理语句。
-		PrepareStmt: mc.PrepareStmt,
+		PrepareStmt: config.PrepareStmt,
 		// Logger 为 gorm 的日志实现。
 		Logger: log,
 	})
@@ -115,14 +115,14 @@ func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) 
 	}
 
 	// 启用 otelgorm 插件（Tracing）
-	if err = db.Use(otelgorm.NewPlugin(otelgorm.WithDBName(mc.Database))); err != nil {
+	if err = db.Use(otelgorm.NewPlugin(otelgorm.WithDBName(config.Database))); err != nil {
 		return nil, err
 	}
 
 	// 当启用 autoMigrate 且传入表模型时，执行自动迁移。
-	if len(tables) != 0 && mc.autoMigrate {
+	if len(config.tables) != 0 && config.autoMigrate {
 		// AutoMigrate 会创建/修改表结构以匹配模型。
-		if err = db.AutoMigrate(tables...); err != nil {
+		if err = db.AutoMigrate(config.tables...); err != nil {
 			return nil, err
 		}
 	}
@@ -135,12 +135,12 @@ func NewPostgres(mc *PostgresConfig, tables []interface{}) (*PostgresDB, error) 
 	}
 
 	// 设置最大打开连接数。
-	d.SetMaxOpenConns(mc.MaxOpenConnects)
+	d.SetMaxOpenConns(config.MaxOpenConnects)
 	// 设置最大空闲连接数。
-	d.SetMaxIdleConns(mc.MaxIdleConnects)
+	d.SetMaxIdleConns(config.MaxIdleConnects)
 	// ConnMaxLifeTime 约定为秒，<=0 表示不限制。
-	if mc.ConnMaxLifeTime > 0 {
-		d.SetConnMaxLifetime(time.Second * time.Duration(mc.ConnMaxLifeTime))
+	if config.ConnMaxLifeTime > 0 {
+		d.SetConnMaxLifetime(time.Second * time.Duration(config.ConnMaxLifeTime))
 	} else {
 		d.SetConnMaxLifetime(0)
 	}
