@@ -1,6 +1,9 @@
 package gormx
 
-import "github.com/fireflycore/go-utils/tlsx"
+import (
+	"github.com/fireflycore/go-utils/tlsx"
+	"github.com/fireflycore/gormx/logger"
+)
 
 // Config 为 gorm 初始化所需的配置项集合。
 type Config struct {
@@ -51,10 +54,14 @@ type Config struct {
 	// Logger 为 true 时启用 gorm logger，并可通过 WithLoggerConsole 控制输出。
 	Logger bool `json:"logger"`
 
+	// tables 为需要迁移的表结构，用于 AutoMigrate。
+	tables []interface{} `json:"-"`
 	// autoMigrate 控制 NewMysql/NewPostgres 是否执行 AutoMigrate。
-	autoMigrate bool
+	autoMigrate bool `json:"-"`
 	// loggerConsole 控制是否输出到控制台。
-	loggerConsole bool
+	loggerConsole bool `json:"-"`
+	// userContextFields 为用户上下文字段，用于记录用户信息。
+	userContextFields *logger.UserContextFields `json:"-"`
 }
 
 // WithLoggerConsole 设置是否将 SQL 日志输出到控制台。
@@ -62,7 +69,17 @@ func (c *Config) WithLoggerConsole(state bool) {
 	c.loggerConsole = state
 }
 
+// WithTables 设置需要迁移的表结构。
+func (c *Config) WithTables(tables []interface{}) {
+	c.tables = tables
+}
+
 // WithAutoMigrate 设置是否在初始化连接后自动迁移表结构。
 func (c *Config) WithAutoMigrate(state bool) {
 	c.autoMigrate = state
+}
+
+func (c *Config) WithUserContextFields(fields *logger.UserContextFields) {
+	fields.Normalize()
+	c.userContextFields = fields
 }
