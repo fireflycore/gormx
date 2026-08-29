@@ -170,3 +170,64 @@ db = db.Scopes(scope.WithPagination(1, 20))
 分页规则：
 - page 从 1 开始（0 会被修正为 1）
 - size 范围为 [5, 100]（小于 5 修正为 5，大于 100 修正为 100）
+
+## 行权限执行
+
+`gormx/access` 将业务服务已经从 authz 获得并校验过的结构化行范围追加到 GORM 查询中。它不读取用户身份、不调用 authz、不加载 Casbin 策略，也不接受客户端传入的表名、列名或 SQL。
+
+资源服务在代码中静态声明 `ResourceBinding`，再把决策转换为 `RowAccessDecision`：
+
+```go
+import (
+	"time"
+
+	"github.com/fireflycore/gormx/access"
+	"gorm.io/gorm/clause"
+)
+
+binding := access.ResourceBinding{
+	ResourceKey: "app.application",
+	Table:       clause.Table{Name: "applications"},
+	AppColumn:   clause.Column{Name: "app_id"},
+	TenantColumn: clause.Column{Name: "tenant_id"},
+	OwnerColumn: clause.Column{Name: "owner_id"},
+}
+
+query, err := access.Apply(
+	db.Model(&Application{}),
+	binding,
+	access.RowAccessDecision{
+		Allowed:     true,
+		ResourceKey: "app.application",
+		RowConstraints: []access.RowConstraint{{
+			Dimension: access.ScopeDimensionTenant,
+			Refs:      []string{"tenant-1"},
+		}},
+		ExpiresAt: time.Now().Add(time.Minute),
+	},
+)
+if err != nil {
+	return err
+}
+
+var applications []Application
+if err := query.Find(&applications).Error; err != nil {
+	return err
+}
+```
+
+应用、租户、用户、owner、资源和组织范围会以参数化 `IN` 条件追加，并按不同维度组合为 `AND`。组织下级范围和业务关系范围由资源服务实现静态 resolver；resolver 应使用独立的 GORM 子查询会话，避免把外层查询条件带入子查询。
+
+`Apply` 在决策拒绝、过期、资源不匹配、重复/非法范围、绑定列缺失或 resolver 失败时返回错误。调用方必须停止使用原始查询，不能忽略错误后绕过行权限。`gormx/access` 不负责字段白名单、DTO 脱敏、创建归属校验或更新字段映射，这些规则仍由业务服务的 biz/data 层执行。
+
+该包的模拟数据测试使用 SQLite，仅用于验证参数化范围和 fail-close 行为；生产服务仍使用项目配置的 PostgreSQL 或 MySQL 连接。
+
+### 基准测试
+
+执行器基准包含 DryRun 构建开销、20,000 行 SQLite 模拟表上的受限列表查询，以及无范围查询对照：
+
+```bash
+go test -run '^$' -bench '^Benchmark' -benchmem ./access
+```
+
+该基准用于比较 `Apply` 与手写同等 `WHERE` 的相对开销，不代表 PostgreSQL 生产吞吐。生产性能主要取决于网络往返、数据量、索引和 resolver 子查询计划；应在目标 PostgreSQL 版本、真实数据分布和实际索引上另行压测。
